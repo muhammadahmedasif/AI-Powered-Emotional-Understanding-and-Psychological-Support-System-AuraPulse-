@@ -10,36 +10,25 @@ The platform combines advanced natural language understanding, emotional state a
 
 Key Objectives
 
-    Provide accessible and personalized mental health support using AI
+   Provide accessible and personalized mental health support using AI
+   Detect emotional distress and potential crisis signals in real time
+   Ensure user data privacy through end-to-end encryption and decentralized storage
+   Enable transparent and verifiable progress tracking using blockchain
+   Incentivize engagement through a token-based reward system
     
-    Detect emotional distress and potential crisis signals in real time
+Core Features
     
-    Ensure user data privacy through end-to-end encryption and decentralized storage
-    
-    Enable transparent and verifiable progress tracking using blockchain
-    
-    Incentivize engagement through a token-based reward system
-    
-    Core Features
-    Autonomous AI Therapy System
-    
-    Emotion-aware conversational AI for mental health support
-    
-    Adaptive response behavior based on user context and emotional state
-    
-    Support for multiple therapeutic approaches, including mindfulness and cognitive behavioral techniques
-    
-    Continuous learning through user interaction feedback
-    
-    Real-time stress and crisis signal detection with escalation protocols
-    
-    Blockchain-Secured Therapy Sessions
-    
-    Therapy session data is securely recorded via smart contracts to ensure integrity and transparency
-    
-    Only session summaries and non-sensitive metadata are stored; personal conversations are never on-chain
+   Autonomous AI Therapy System
+   Emotion-aware conversational AI for mental health support
+   Adaptive response behavior based on user context and emotional state
+   Support for multiple therapeutic approaches, including mindfulness and cognitive behavioral techniques
+   Continuous learning through user interaction feedback
+   Real-time stress and crisis signal detection with escalation protocols
+   Blockchain-Secured Therapy Sessions
+   Therapy session data is securely recorded via smart contracts to ensure integrity and transparency
+   Only session summaries and non-sensitive metadata are stored; personal conversations are never on-chain
 
-    Smart Contract Example:
+ Smart Contract Example:
     
         struct TherapySession {
             uint256 sessionId;
@@ -52,31 +41,19 @@ Key Objectives
             bool completed;
         }
     
-    NFT-Based Progress Tracking
-    
-    ERC-721 tokens represent therapy sessions, milestones, and achievements
-    
-    Provides verifiable progress without exposing sensitive user data
-    
-    Interactive Therapeutic Experiences
-    
-    Guided breathing and mindfulness exercises
-    
-    Virtual relaxation environments
-    
-    Stress reduction and emotional regulation activities
-    
-    Tokenized Incentive System
-    
-    Engagement-based rewards
-    
-    Milestone incentives
-    
-    Long-term participation staking
-    
-    Community contribution rewards
+   NFT-Based Progress Tracking   
+   ERC-721 tokens represent therapy sessions, milestones, and achievements
+   Provides verifiable progress without exposing sensitive user data   
+   Interactive Therapeutic Experiences  
+   Guided breathing and mindfulness exercises 
+   Virtual relaxation environments 
+   Stress reduction and emotional regulation activities  
+   Tokenized Incentive System
+   Engagement-based rewards  
+   Milestone incentives 
+   Long-term participation staking
 
-    Token Interface Example:
+Token Interface Example:
     
         interface ISonicToken {
             function mint(address to, uint256 amount) external;
@@ -84,7 +61,7 @@ Key Objectives
             function getRewards() external view returns (uint256);
         }
         
-    Technical Architecture
+Technical Architecture
     AI Agent Configuration:
     
         class TherapyAgentConfig {
@@ -97,7 +74,7 @@ Key Objectives
               crisis_protocol: object;
         }
     
-    Crisis Detection System:
+Crisis Detection System:
     
         const detectStressSignals = (message: string): StressPrompt | null => {
               const stressKeywords = [
@@ -107,14 +84,14 @@ Key Objectives
               // Contextual analysis and intervention logic
         };
     
-    Security & Compliance
+Security & Compliance
     
-        HIPAA-aligned data handling
-        GDPR-compliant privacy controls
-        End-to-end encrypted communication
-        Role-based access control
-        Multi-signature smart contract validation
-        Privacy-preserving analytics
+   HIPAA-aligned data handling
+   GDPR-compliant privacy controls
+   End-to-end encrypted communication
+   Role-based access control
+   Multi-signature smart contract validation
+   Privacy-preserving analytics
 
 Screenshots
 
