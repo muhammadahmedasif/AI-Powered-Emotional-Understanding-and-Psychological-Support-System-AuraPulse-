@@ -5,6 +5,8 @@ Aura is a privacy-first, AI-powered mental health support platform designed to p
 
 The platform integrates advanced natural language understanding, emotional state analysis, and decentralized infrastructure to deliver real-time mental health support, progress tracking, and crisis-aware interventions. Aura is deployed on the Sonic Blaze Testnet and leverages smart contracts to securely manage therapy session data and user achievements.
 
+https://github.com/muhammadahmedasif/AI-Powered-Emotional-Understanding-and-Psychological-Support-System-AuraPulse-/blob/8f295ea5ac6968a41ad993a808188aff35c15038/Screenshot%202026-01-30%20115301.png
+
 Key Objectives
 
 Provide accessible and personalized mental health support using AI
@@ -33,6 +35,25 @@ Real-time stress and crisis signal detection with escalation protocols
 Blockchain-Secured Therapy Sessions
 
 Therapy session data is securely recorded using smart contracts to ensure integrity and transparency.
+
+Screenshots:
+Login/Signup
+https://github.com/muhammadahmedasif/AI-Powered-Emotional-Understanding-and-Psychological-Support-System-AuraPulse-/blob/8f295ea5ac6968a41ad993a808188aff35c15038/Screenshot%202026-01-30%20115753.png
+
+Activity Dashboard/Main Dashboard
+https://github.com/muhammadahmedasif/AI-Powered-Emotional-Understanding-and-Psychological-Support-System-AuraPulse-/blob/8f295ea5ac6968a41ad993a808188aff35c15038/Screenshot%202026-01-30%20115417.png
+
+Anxiety Relief Games 
+https://github.com/muhammadahmedasif/AI-Powered-Emotional-Understanding-and-Psychological-Support-System-AuraPulse-/blob/8f295ea5ac6968a41ad993a808188aff35c15038/Screenshot%202026-01-30%20115451.png
+
+Breathng Pattern Anxiety Relief Game
+https://github.com/muhammadahmedasif/AI-Powered-Emotional-Understanding-and-Psychological-Support-System-AuraPulse-/blob/8f295ea5ac6968a41ad993a808188aff35c15038/Screenshot%202026-01-30%20115517.png
+
+Track Activities/Save Activities
+https://github.com/muhammadahmedasif/AI-Powered-Emotional-Understanding-and-Psychological-Support-System-AuraPulse-/blob/8f295ea5ac6968a41ad993a808188aff35c15038/Screenshot%202026-01-30%20115552.png
+
+AI Chat Support
+https://github.com/muhammadahmedasif/AI-Powered-Emotional-Understanding-and-Psychological-Support-System-AuraPulse-/blob/8f295ea5ac6968a41ad993a808188aff35c15038/Screenshot%202026-01-30%20115648.png
 
 Smart Contract Structure
 struct TherapySession {
@@ -145,7 +166,7 @@ Privacy-preserving analytics
 
 Getting Started
 1. Clone the Repository
-git clone https://github.com/your-username/aura.git
+git clone https://github.com/muhammadahmedasif/AI-Powered-Emotional-Understanding-and-Psychological-Support-System-AuraPulse-
 cd aura
 npm install
 
