@@ -7,20 +7,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { Mail } from "lucide-react";
+import { forgotPassword } from "@/lib/api/auth";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // TODO: Call backend to send reset email
-    setTimeout(() => {
+    setError("");
+    try {
+      await forgotPassword(email);
       setSubmitted(true);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to send reset link. Please try again."
+      );
+    } finally {
       setLoading(false);
-    }, 1200);
+    }
   };
 
   return (
@@ -66,6 +76,11 @@ export default function ForgotPasswordPage() {
                   />
                 </div>
               </div>
+              {error && (
+                <p className="text-red-500 text-base text-center font-medium">
+                  {error}
+                </p>
+              )}
               <Button
                 className="w-full py-2 text-base rounded-xl font-bold bg-gradient-to-r from-primary to-primary/80 shadow-md hover:from-primary/80 hover:to-primary"
                 size="lg"

@@ -7,8 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { Lock } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { resetPassword } from "@/lib/api/auth";
+import { Suspense } from "react";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") || "";
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -18,16 +24,30 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!token) {
+      setError("Invalid or missing reset token.");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
+
     setLoading(true);
-    // TODO: Call backend to reset password
-    setTimeout(() => {
+    try {
+      await resetPassword(token, password);
       setSuccess(true);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to reset password. Please try again."
+      );
+    } finally {
       setLoading(false);
-    }, 1200);
+    }
   };
 
   return (
@@ -124,5 +144,19 @@ export default function ResetPasswordPage() {
         </Card>
       </Container>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/30">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

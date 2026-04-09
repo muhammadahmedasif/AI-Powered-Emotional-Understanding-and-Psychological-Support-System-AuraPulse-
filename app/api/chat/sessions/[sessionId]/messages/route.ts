@@ -18,6 +18,14 @@ export async function POST(
       );
     }
 
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: "Authorization header is required" },
+        { status: 401 }
+      );
+    }
+
     console.log(`Sending message to session ${sessionId}:`, message);
     const response = await fetch(
       `${BACKEND_API_URL}/chat/sessions/${sessionId}/messages`,
@@ -25,6 +33,7 @@ export async function POST(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: authHeader,
         },
         body: JSON.stringify({ message }),
       }

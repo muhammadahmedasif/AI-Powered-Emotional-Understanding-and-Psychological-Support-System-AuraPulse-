@@ -424,6 +424,9 @@ export default function TherapyPage() {
     }
   };
 
+  const currentSession = sessions.find((s) => s.sessionId === sessionId);
+  const currentTitle = currentSession?.title || "New Chat";
+
   return (
     <div className="relative max-w-7xl mx-auto px-4">
       <div className="flex h-[calc(100vh-4rem)] mt-20 gap-6">
@@ -477,7 +480,7 @@ export default function TherapyPage() {
                   <div className="flex items-center gap-2 mb-1">
                     <MessageSquare className="w-4 h-4" />
                     <span className="font-medium">
-                      {session.messages[0]?.content.slice(0, 30) || "New Chat"}
+                      {session.title || (session.messages && session.messages[0] ? session.messages[0].content.slice(0, 30) : "New Chat")}
                     </span>
                   </div>
                   <p className="line-clamp-2 text-muted-foreground">
@@ -486,22 +489,12 @@ export default function TherapyPage() {
                   </p>
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-xs text-muted-foreground">
-                      {session.messages.length} messages
+                      {session.messages?.length || 0} messages
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {(() => {
-                        try {
-                          const date = new Date(session.updatedAt);
-                          if (isNaN(date.getTime())) {
-                            return "Just now";
-                          }
-                          return formatDistanceToNow(date, {
-                            addSuffix: true,
-                          });
-                        } catch (error) {
-                          return "Just now";
-                        }
-                      })()}
+                      {formatDistanceToNow(new Date(session.updatedAt), {
+                        addSuffix: true,
+                      })}
                     </span>
                   </div>
                 </div>
@@ -519,9 +512,9 @@ export default function TherapyPage() {
                 <Bot className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="font-semibold">AI Therapist</h2>
+                <h2 className="font-semibold">{currentTitle}</h2>
                 <p className="text-sm text-muted-foreground">
-                  {messages.length} messages
+                  AI Therapist • {messages.length} messages
                 </p>
               </div>
             </div>

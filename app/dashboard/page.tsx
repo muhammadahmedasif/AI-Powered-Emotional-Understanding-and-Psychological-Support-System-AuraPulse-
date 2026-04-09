@@ -36,10 +36,11 @@ import { MoodForm } from "@/components/mood/mood-form";
 import { AnxietyGames } from "@/components/games/anxiety-games";
 
 import {
-  getUserActivities,
-  saveMoodData,
+  getActivityHistory,
+  getTodayActivities,
   logActivity,
-} from "@/lib/static-dashboard-data";
+} from "@/lib/api/activity";
+import { trackMood, getMoodHistory } from "@/lib/api/mood";
 
 import {
   Dialog,
@@ -61,7 +62,7 @@ import { ActivityLogger } from "@/components/activities/activity-logger";
 import { useSession } from "@/lib/contexts/session-context";
 import { getAllChatSessions } from "@/lib/api/chat";
 
-// Add this type definition
+// type definition
 type ActivityLevel = "none" | "low" | "medium" | "high";
 
 interface DayActivity {
@@ -75,7 +76,7 @@ interface DayActivity {
   }[];
 }
 
-// Add this interface near the top with other interfaces
+// interface Activity
 interface Activity {
   id: string;
   userId: string | null;
@@ -91,7 +92,7 @@ interface Activity {
   updatedAt: Date;
 }
 
-// Add this interface for stats
+// interface for stats
 interface DailyStats {
   moodScore: number | null;
   completionRate: number;
@@ -100,41 +101,7 @@ interface DailyStats {
   lastUpdated: Date;
 }
 
-// Update the calculateDailyStats function to show correct stats
-const calculateDailyStats = (activities: Activity[]): DailyStats => {
-  const today = startOfDay(new Date());
-  const todaysActivities = activities.filter((activity) =>
-    isWithinInterval(new Date(activity.timestamp), {
-      start: today,
-      end: addDays(today, 1),
-    })
-  );
-
-  // Calculate mood score (average of today's mood entries)
-  const moodEntries = todaysActivities.filter(
-    (a) => a.type === "mood" && a.moodScore !== null
-  );
-  const averageMood =
-    moodEntries.length > 0
-      ? Math.round(
-          moodEntries.reduce((acc, curr) => acc + (curr.moodScore || 0), 0) /
-            moodEntries.length
-        )
-      : null;
-
-  // Count therapy sessions (all sessions ever)
-  const therapySessions = activities.filter((a) => a.type === "therapy").length;
-
-  return {
-    moodScore: averageMood,
-    completionRate: 100, // Always 100% as requested
-    mindfulnessCount: therapySessions, // Total number of therapy sessions
-    totalActivities: todaysActivities.length,
-    lastUpdated: new Date(),
-  };
-};
-
-// Rename the function
+//generate Insights function
 const generateInsights = (activities: Activity[]) => {
   const insights: {
     title: string;
@@ -294,6 +261,7 @@ export default function Dashboard() {
     totalActivities: 0,
     lastUpdated: new Date(),
   });
+  const [lastMoodScore, setLastMoodScore] = useState<number>(50);
 
   // Add this function to transform activities into day activity format
   const transformActivitiesToDayActivity = (
@@ -338,9 +306,19 @@ export default function Dashboard() {
   // Modify the loadActivities function to use a default user ID
   const loadActivities = useCallback(async () => {
     try {
-      const userActivities = await getUserActivities("default-user");
+      const response = await getActivityHistory();
+      const userActivities = response.data || [];
       setActivities(userActivities);
       setActivityHistory(transformActivitiesToDayActivity(userActivities));
+
+      // Find the most recent mood entry to set as the initial value for the modal
+      const moodActivities = userActivities
+        .filter((a) => a.type === "mood" && a.moodScore !== null)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      if (moodActivities.length > 0) {
+        setLastMoodScore(moodActivities[0].moodScore || 50);
+      }
     } catch (error) {
       console.error("Error loading activities:", error);
     }
@@ -352,13 +330,6 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  // Add this effect to update stats when activities change
-  useEffect(() => {
-    if (activities.length > 0) {
-      setDailyStats(calculateDailyStats(activities));
-    }
-  }, [activities]);
-
   // Update the effect
   useEffect(() => {
     if (activities.length > 0) {
@@ -369,31 +340,42 @@ export default function Dashboard() {
   // Add function to fetch daily stats
   const fetchDailyStats = useCallback(async () => {
     try {
-      // Fetch therapy sessions using the chat API
-      const sessions = await getAllChatSessions();
+      const today = startOfDay(new Date());
 
-      // Fetch today's activities
-      const activitiesResponse = await fetch("/api/activities/today");
-      if (!activitiesResponse.ok) throw new Error("Failed to fetch activities");
-      const activities = await activitiesResponse.json();
+      // Fetch all required data in parallel to avoid clobbering state
+      const [sessions, activitiesResponse, moodResponse] = await Promise.all([
+        getAllChatSessions(),
+        getTodayActivities(),
+        getMoodHistory({
+          startDate: today.toISOString(),
+          endDate: addDays(today, 1).toISOString(),
+        }),
+      ]);
 
-      // Calculate mood score from activities
-      const moodEntries = activities.filter(
-        (a: Activity) => a.type === "mood" && a.moodScore !== null
-      );
+      const activities = activitiesResponse.data || [];
+      const moodHistory = moodResponse.data || [];
+
+      // Calculate mood score from dedicated mood history
       const averageMood =
-        moodEntries.length > 0
+        moodHistory.length > 0
           ? Math.round(
-              moodEntries.reduce(
-                (acc: number, curr: Activity) => acc + (curr.moodScore || 0),
-                0
-              ) / moodEntries.length
-            )
+            moodHistory.reduce(
+              (acc: number, curr: any) => acc + (curr.score || 0),
+              0
+            ) / moodHistory.length
+          )
           : null;
+
+      // Calculate completion rate
+      const completedCount = activities.filter((a) => a.completed).length;
+      const completionRate =
+        activities.length > 0
+          ? Math.round((completedCount / activities.length) * 100)
+          : 0;
 
       setDailyStats({
         moodScore: averageMood,
-        completionRate: 100,
+        completionRate: activities.length > 0 ? completionRate : 100, // Default to 100 if no activities
         mindfulnessCount: sessions.length, // Total number of therapy sessions
         totalActivities: activities.length,
         lastUpdated: new Date(),
@@ -422,11 +404,11 @@ export default function Dashboard() {
     },
     {
       title: "Completion Rate",
-      value: "100%",
+      value: `${dailyStats.completionRate}%`,
       icon: Trophy,
       color: "text-yellow-500",
       bgColor: "bg-yellow-500/10",
-      description: "Perfect completion rate",
+      description: dailyStats.completionRate === 100 ? "Perfect completion rate" : "Keep going!",
     },
     {
       title: "Therapy Sessions",
@@ -459,9 +441,8 @@ export default function Dashboard() {
   const handleMoodSubmit = async (data: { moodScore: number }) => {
     setIsSavingMood(true);
     try {
-      await saveMoodData({
-        userId: "default-user",
-        mood: data.moodScore,
+      await trackMood({
+        score: data.moodScore,
         note: "",
       });
       setShowMoodModal(false);
@@ -481,7 +462,6 @@ export default function Dashboard() {
     async (gameName: string, description: string) => {
       try {
         await logActivity({
-          userId: "default-user",
           type: "game",
           name: gameName,
           description: description,
@@ -490,6 +470,7 @@ export default function Dashboard() {
 
         // Refresh activities after logging
         loadActivities();
+        fetchDailyStats();
       } catch (error) {
         console.error("Error logging game activity:", error);
       }
@@ -699,8 +680,8 @@ export default function Dashboard() {
                           insight.priority === "high"
                             ? "bg-primary/10"
                             : insight.priority === "medium"
-                            ? "bg-primary/5"
-                            : "bg-muted"
+                              ? "bg-primary/5"
+                              : "bg-muted"
                         )}
                       >
                         <div className="flex items-center gap-2">
@@ -746,7 +727,15 @@ export default function Dashboard() {
               Move the slider to track your current mood
             </DialogDescription>
           </DialogHeader>
-          <MoodForm onSuccess={() => setShowMoodModal(false)} />
+          <MoodForm
+            key={showMoodModal ? "open" : "closed"}
+            initialMoodScore={lastMoodScore}
+            onSuccess={() => {
+              setShowMoodModal(false);
+              loadActivities();
+              fetchDailyStats();
+            }}
+          />
         </DialogContent>
       </Dialog>
 
@@ -774,7 +763,10 @@ export default function Dashboard() {
       <ActivityLogger
         open={showActivityLogger}
         onOpenChange={setShowActivityLogger}
-        onActivityLogged={loadActivities}
+        onActivityLogged={() => {
+          loadActivities();
+          fetchDailyStats();
+        }}
       />
     </div>
   );

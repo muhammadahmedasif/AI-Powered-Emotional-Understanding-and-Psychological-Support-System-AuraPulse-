@@ -27,3 +27,41 @@ export async function logActivity(
 
   return response.json();
 }
+
+export async function getActivityHistory(): Promise<{ success: boolean; data: any[] }> {
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Not authenticated");
+
+  const response = await fetch("/api/activity", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to fetch activities");
+  }
+
+  return response.json();
+}
+
+export async function getTodayActivities(): Promise<{ success: boolean; data: any[] }> {
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Not authenticated");
+
+  const response = await fetch("/api/activity/today", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to fetch today's activities");
+  }
+
+  return response.json();
+}

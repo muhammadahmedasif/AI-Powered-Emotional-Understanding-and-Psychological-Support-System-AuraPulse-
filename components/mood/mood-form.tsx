@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Loader2 } from "lucide-react";
@@ -10,11 +10,17 @@ import { useRouter } from "next/navigation";
 
 interface MoodFormProps {
   onSuccess?: () => void;
+  initialMoodScore?: number;
 }
 
-export function MoodForm({ onSuccess }: MoodFormProps) {
-  const [moodScore, setMoodScore] = useState(50);
+export function MoodForm({ onSuccess, initialMoodScore = 50 }: MoodFormProps) {
+  const [moodScore, setMoodScore] = useState(initialMoodScore);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Sync moodScore with initialMoodScore prop whenever it changes
+  useEffect(() => {
+    setMoodScore(initialMoodScore);
+  }, [initialMoodScore]);
   const { toast } = useToast();
   const { user, isAuthenticated, loading } = useSession();
   const router = useRouter();
