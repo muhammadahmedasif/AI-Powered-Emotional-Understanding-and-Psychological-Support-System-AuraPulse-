@@ -40,17 +40,23 @@ export async function POST(
     );
 
     if (!response.ok) {
-      const error = await response.json();
-      console.error("Failed to send message:", error);
-      return NextResponse.json(
-        { error: error.error || "Failed to send message" },
-        { status: response.status }
-      );
+      let errorMessage = "Failed to send message";
+      try {
+        const error = await response.json();
+        errorMessage = error.error || errorMessage;
+      } catch (e) {}
+      console.error("Failed to send message:", errorMessage);
+      return NextResponse.json({ error: errorMessage }, { status: response.status });
     }
 
-    const data = await response.json();
-    console.log("Message sent successfully:", data);
-    return NextResponse.json(data);
+    // Return the response body directly to stream it to the client
+    return new Response(response.body, {
+      headers: {
+        "Content-Type": "application/x-ndjson",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      },
+    });
   } catch (error) {
     console.error("Error sending message:", error);
     return NextResponse.json(

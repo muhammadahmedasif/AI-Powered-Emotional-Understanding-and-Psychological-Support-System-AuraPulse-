@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   createChatSession,
   sendChatMessage,
+  sendChatMessageStream,
   getChatHistory,
   ChatMessage,
   getAllChatSessions,
@@ -117,6 +118,7 @@ export default function TherapyPage() {
       // Update sessions list immediately
       const newSession: ChatSession = {
         sessionId: newSessionId,
+        title: "New Therapy Session",
         messages: [],
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -256,44 +258,69 @@ export default function TherapyPage() {
       }
 
       console.log("Sending message to API...");
-      // Send message to API
-      const response = await sendChatMessage(sessionId, currentMessage);
-      console.log("Raw API response:", response);
-
-      // Parse the response if it's a string
-      const aiResponse =
-        typeof response === "string" ? JSON.parse(response) : response;
-      console.log("Parsed AI response:", aiResponse);
-
-      // Add AI response with metadata
-      const assistantMessage: ChatMessage = {
-        role: "assistant",
-        content:
-          aiResponse.response ||
-          aiResponse.message ||
-          "I'm here to support you. Could you tell me more about what's on your mind?",
-        timestamp: new Date(),
-        metadata: {
-          analysis: aiResponse.analysis || {
-            emotionalState: "neutral",
-            riskLevel: 0,
-            themes: [],
-            recommendedApproach: "supportive",
-            progressIndicators: [],
-          },
-          technique: aiResponse.metadata?.technique || "supportive",
-          goal: aiResponse.metadata?.currentGoal || "Provide support",
-          progress: aiResponse.metadata?.progress || {
-            emotionalState: "neutral",
-            riskLevel: 0,
-          },
+      
+      // Add empty assistant message immediately so we can stream into it
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
         },
-      };
+      ]);
+      
+      const response = await sendChatMessageStream(sessionId, currentMessage);
+      if (!response.body) throw new Error("No response body");
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-      console.log("Created assistant message:", assistantMessage);
-
-      // Add the message immediately
-      setMessages((prev) => [...prev, assistantMessage]);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        // Keep the last incomplete line in the buffer
+        buffer = lines.pop() || "";
+        
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const data = JSON.parse(line);
+            
+            if (data.t === "chunk") {
+              // Set typing to false as soon as first chunk arrives
+              setIsTyping(false);
+              
+              // Append text chunk to the last message
+              setMessages((prev) => {
+                const newMessages = [...prev];
+                newMessages[newMessages.length - 1].content += data.d;
+                return newMessages;
+              });
+              scrollToBottom();
+            } else if (data.t === "done") {
+              // Finalize message with metadata
+              setMessages((prev) => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                lastMessage.metadata = {
+                  analysis: data.analysis,
+                  technique: data.metadata?.technique || "supportive",
+                  goal: data.metadata?.currentGoal || "Provide support",
+                  progress: data.metadata?.progress,
+                };
+                return newMessages;
+              });
+            }
+          } catch (e) {
+            console.error("Error parsing NDJSON chunk:", e);
+          }
+        }
+      }
+      
       setIsTyping(false);
       scrollToBottom();
     } catch (error) {
