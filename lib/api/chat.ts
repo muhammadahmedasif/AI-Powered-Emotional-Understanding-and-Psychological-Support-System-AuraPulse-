@@ -133,6 +133,15 @@ export async function getChatHistory(sessionId: string): Promise<ChatMessage[]> 
   return messages.map(toMessage);
 }
 
+export async function deleteChatSession(sessionId: string): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE}/sessions/${sessionId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  return parseJson<{ message: string }>(response);
+}
+
 export async function getAllChatSessions(): Promise<ChatSession[]> {
   const response = await fetch(`${API_BASE}/sessions`, {
     headers: getAuthHeaders(),

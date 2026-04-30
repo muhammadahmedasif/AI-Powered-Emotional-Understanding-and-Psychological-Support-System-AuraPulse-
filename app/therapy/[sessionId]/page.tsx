@@ -16,6 +16,7 @@ import {
   Smile,
   PlusCircle,
   MessageSquare,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -40,6 +41,7 @@ import {
   ChatMessage,
   getAllChatSessions,
   ChatSession,
+  deleteChatSession,
 } from "@/lib/api/chat";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
@@ -184,6 +186,23 @@ export default function TherapyPage() {
       console.error("Failed to create new session:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeleteSession = async (e: React.MouseEvent, idToDelete: string) => {
+    e.stopPropagation(); // Prevent navigating to the session when clicking delete
+    try {
+      await deleteChatSession(idToDelete);
+      
+      // Update local state to remove the session instantly
+      setSessions(prev => prev.filter(s => s.sessionId !== idToDelete));
+      
+      // If we just deleted the currently active session, navigate away
+      if (sessionId === idToDelete) {
+        router.push("/therapy/new");
+      }
+    } catch (error) {
+      console.error("Failed to delete session:", error);
     }
   };
 
@@ -487,11 +506,22 @@ export default function TherapyPage() {
                   )}
                   onClick={() => handleSessionSelect(session.sessionId)}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <MessageSquare className="w-4 h-4" />
-                    <span className="font-medium">
-                      {session.title || (session.messages && session.messages[0] ? session.messages[0].content.slice(0, 30) : "New Chat")}
-                    </span>
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4" />
+                      <span className="font-medium">
+                        {session.title || (session.messages && session.messages[0] ? session.messages[0].content.slice(0, 30) : "New Chat")}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      onClick={(e) => handleDeleteSession(e, session.sessionId)}
+                      title="Delete session"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                   <p className="line-clamp-2 text-muted-foreground">
                     {session.messages[session.messages.length - 1]?.content ||
