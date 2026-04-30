@@ -17,6 +17,7 @@ import {
   Lightbulb,
   Lock,
   MessageSquareHeart,
+  Loader2,
 } from "lucide-react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Slider } from "@/components/ui/slider";
@@ -30,6 +31,9 @@ import {
 } from "@/components/ui/dialog";
 import React from "react";
 import { Ripple } from "@/components/ui/ripple";
+import { useSession } from "@/lib/contexts/session-context";
+import { getMoodHistory, trackMood } from "@/lib/api/mood";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function Home() {
   const emotions = [
@@ -44,6 +48,10 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [isSavingMood, setIsSavingMood] = useState(false);
+  const [moodSaved, setMoodSaved] = useState(false);
+  const { isAuthenticated } = useSession();
+  const { toast } = useToast();
 
   const welcomeSteps = [
     {
@@ -69,6 +77,53 @@ export default function Home() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Fetch the user's last mood when authenticated
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const loadLastMood = async () => {
+      try {
+        const response = await getMoodHistory({ limit: 1 });
+        const moods = response.data || [];
+        if (moods.length > 0 && typeof moods[0].score === "number") {
+          setEmotion(moods[0].score);
+        }
+      } catch (error) {
+        // Silently ignore — user may not have any mood history yet
+      }
+    };
+    loadLastMood();
+  }, [isAuthenticated]);
+
+  const handleSaveMood = async () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to save your mood",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      setIsSavingMood(true);
+      await trackMood({ score: emotion, note: "" });
+      setMoodSaved(true);
+      toast({
+        title: "Mood saved! ✨",
+        description: "Your mood has been recorded successfully.",
+      });
+      // Reset "saved" indicator after 3 seconds
+      setTimeout(() => setMoodSaved(false), 3000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save your mood. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingMood(false);
+    }
+  };
 
   const currentEmotion =
     emotions.find((em) => Math.abs(emotion - em.value) < 15) || emotions[2];
@@ -197,10 +252,36 @@ export default function Home() {
               />
             </div>
 
-            <div className="text-center">
+            <div className="text-center space-y-3">
               <p className="text-sm text-muted-foreground animate-pulse">
                 Slide to express how you're feeling today
               </p>
+              {isAuthenticated && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full px-6 border-primary/30 hover:border-primary/60 hover:bg-primary/10 transition-all duration-300"
+                  onClick={handleSaveMood}
+                  disabled={isSavingMood}
+                >
+                  {isSavingMood ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : moodSaved ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4 text-green-500" />
+                      Mood Saved!
+                    </>
+                  ) : (
+                    <>
+                      <Heart className="mr-2 h-4 w-4" />
+                      Save Mood
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </motion.div>
 

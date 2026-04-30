@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const API_URL = process.env.BACKEND_API_URL;
   const token = req.headers.get("Authorization");
@@ -17,6 +19,7 @@ export async function GET(req: NextRequest) {
       headers: {
         Authorization: token,
       },
+      cache: "no-store",
     });
 
     if (!response.ok) {

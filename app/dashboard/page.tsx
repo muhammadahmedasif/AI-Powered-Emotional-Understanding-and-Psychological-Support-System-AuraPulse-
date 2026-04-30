@@ -19,6 +19,9 @@ import {
   ArrowRight,
   X,
   Loader2,
+  Trash2,
+  Clock,
+  Dumbbell,
 } from "lucide-react";
 import {
   Card,
@@ -39,6 +42,7 @@ import {
   getActivityHistory,
   getTodayActivities,
   logActivity,
+  deleteActivity,
 } from "@/lib/api/activity";
 import { trackMood, getMoodHistory } from "@/lib/api/mood";
 
@@ -56,6 +60,7 @@ import {
   subDays,
   startOfDay,
   isWithinInterval,
+  formatDistanceToNow,
 } from "date-fns";
 
 import { ActivityLogger } from "@/components/activities/activity-logger";
@@ -262,6 +267,7 @@ export default function Dashboard() {
     lastUpdated: new Date(),
   });
   const [lastMoodScore, setLastMoodScore] = useState<number>(50);
+  const [todayActivities, setTodayActivities] = useState<Activity[]>([]);
 
   // Add this function to transform activities into day activity format
   const transformActivitiesToDayActivity = (
@@ -306,18 +312,19 @@ export default function Dashboard() {
   // Modify the loadActivities function to use a default user ID
   const loadActivities = useCallback(async () => {
     try {
-      const response = await getActivityHistory();
+      const [response, moodResponse] = await Promise.all([
+        getActivityHistory(),
+        getMoodHistory({ limit: 1 }),
+      ]);
+
       const userActivities = response.data || [];
       setActivities(userActivities);
       setActivityHistory(transformActivitiesToDayActivity(userActivities));
 
-      // Find the most recent mood entry to set as the initial value for the modal
-      const moodActivities = userActivities
-        .filter((a) => a.type === "mood" && a.moodScore !== null)
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-      if (moodActivities.length > 0) {
-        setLastMoodScore(moodActivities[0].moodScore || 50);
+      // Get the most recent mood from the Mood collection (same source as landing page)
+      const latestMoods = moodResponse.data || [];
+      if (latestMoods.length > 0 && typeof latestMoods[0].score === "number") {
+        setLastMoodScore(latestMoods[0].score);
       }
     } catch (error) {
       console.error("Error loading activities:", error);
@@ -342,42 +349,52 @@ export default function Dashboard() {
     try {
       const today = startOfDay(new Date());
 
-      // Fetch all required data in parallel to avoid clobbering state
-      const [sessions, activitiesResponse, moodResponse] = await Promise.all([
+      // Fetch all required data in parallel
+      const [sessions, activitiesResponse, todayMoodResponse, latestMoodResponse] = await Promise.all([
         getAllChatSessions(),
         getTodayActivities(),
         getMoodHistory({
           startDate: today.toISOString(),
           endDate: addDays(today, 1).toISOString(),
         }),
+        // Also fetch the single most recent mood entry as a fallback
+        getMoodHistory({ limit: 1 }),
       ]);
 
-      const activities = activitiesResponse.data || [];
-      const moodHistory = moodResponse.data || [];
+      const allTodayActivities = activitiesResponse.data || [];
+      const todayMoods = todayMoodResponse.data || [];
+      const latestMoodArr = latestMoodResponse.data || [];
 
-      // Calculate mood score from dedicated mood history
-      const averageMood =
-        moodHistory.length > 0
-          ? Math.round(
-            moodHistory.reduce(
-              (acc: number, curr: any) => acc + (curr.score || 0),
-              0
-            ) / moodHistory.length
-          )
-          : null;
+      // Store today's activities for the check-ins card
+      setTodayActivities(allTodayActivities);
 
-      // Calculate completion rate
-      const completedCount = activities.filter((a) => a.completed).length;
+      // Use today's average mood if available, otherwise fall back to most recent entry ever
+      let moodScore: number | null = null;
+      if (todayMoods.length > 0) {
+        moodScore = Math.round(
+          todayMoods.reduce((acc: number, curr: any) => acc + (curr.score || 0), 0) / todayMoods.length
+        );
+      } else if (latestMoodArr.length > 0) {
+        moodScore = latestMoodArr[0].score ?? null;
+      }
+
+      // Split activities: in-app (game, therapy) vs check-ins (everything else)
+      const appActivityTypes = ["game"];
+      const appActivities = allTodayActivities.filter((a: any) => appActivityTypes.includes(a.type));
+      const checkInActivities = allTodayActivities.filter((a: any) => !appActivityTypes.includes(a.type));
+
+      // Completion rate based on check-in activities
+      const completedCount = checkInActivities.filter((a: any) => a.completed).length;
       const completionRate =
-        activities.length > 0
-          ? Math.round((completedCount / activities.length) * 100)
+        checkInActivities.length > 0
+          ? Math.round((completedCount / checkInActivities.length) * 100)
           : 0;
 
       setDailyStats({
-        moodScore: averageMood,
-        completionRate: activities.length > 0 ? completionRate : 100, // Default to 100 if no activities
-        mindfulnessCount: sessions.length, // Total number of therapy sessions
-        totalActivities: activities.length,
+        moodScore,
+        completionRate,
+        mindfulnessCount: sessions.length,
+        totalActivities: appActivities.length,
         lastUpdated: new Date(),
       });
     } catch (error) {
@@ -392,39 +409,41 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [fetchDailyStats]);
 
-  // Update wellness stats to reflect the changes
+  // Update wellness stats to reflect actual data
   const wellnessStats = [
     {
       title: "Mood Score",
-      value: dailyStats.moodScore ? `${dailyStats.moodScore}%` : "No data",
+      value: dailyStats.moodScore !== null ? `${dailyStats.moodScore}%` : "No data",
       icon: Brain,
       color: "text-purple-500",
       bgColor: "bg-purple-500/10",
-      description: "Today's average mood",
+      description: dailyStats.moodScore !== null ? "Your latest mood" : "Track your mood to see data",
     },
     {
       title: "Completion Rate",
-      value: `${dailyStats.completionRate}%`,
+      value: todayActivities.filter((a: any) => !["game"].includes(a.type)).length > 0 ? `${dailyStats.completionRate}%` : "N/A",
       icon: Trophy,
       color: "text-yellow-500",
       bgColor: "bg-yellow-500/10",
-      description: dailyStats.completionRate === 100 ? "Perfect completion rate" : "Keep going!",
+      description: todayActivities.filter((a: any) => !["game"].includes(a.type)).length > 0
+        ? `${dailyStats.completionRate >= 80 ? "Great progress!" : "Keep going!"}`
+        : "Log check-ins to track",
     },
     {
       title: "Therapy Sessions",
-      value: `${dailyStats.mindfulnessCount} sessions`,
+      value: `${dailyStats.mindfulnessCount}`,
       icon: Heart,
       color: "text-rose-500",
       bgColor: "bg-rose-500/10",
-      description: "Total sessions completed",
+      description: "Total sessions",
     },
     {
-      title: "Total Activities",
+      title: "Games Played",
       value: dailyStats.totalActivities.toString(),
-      icon: Activity,
+      icon: Dumbbell,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10",
-      description: "Planned for today",
+      description: "Anxiety relief today",
     },
   ];
 
@@ -477,6 +496,19 @@ export default function Dashboard() {
     },
     [loadActivities]
   );
+
+  const handleDeleteActivity = async (activityId: string) => {
+    try {
+      await deleteActivity(activityId);
+      // Update local state instantly
+      setTodayActivities(prev => prev.filter(a => a.id !== activityId));
+      // Refresh stats
+      loadActivities();
+      fetchDailyStats();
+    } catch (error) {
+      console.error("Error deleting activity:", error);
+    }
+  };
 
   // Simple loading state
   if (!mounted) {
@@ -706,6 +738,107 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Your Check-ins Card */}
+          <Card className="border-primary/10">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-primary" />
+                    Your Check-ins
+                  </CardTitle>
+                  <CardDescription>
+                    Activities you've logged today
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowActivityLogger(true)}
+                  className="hover:bg-primary/10"
+                >
+                  <Activity className="w-4 h-4 mr-2" />
+                  Log Activity
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                const checkIns = todayActivities.filter(
+                  (a: any) => !["game"].includes(a.type)
+                );
+                if (checkIns.length === 0) {
+                  return (
+                    <div className="text-center text-muted-foreground py-8">
+                      <Calendar className="w-8 h-8 mx-auto mb-3 opacity-50" />
+                      <p>No check-ins today.</p>
+                      <p className="text-sm mt-1">
+                        Click "Log Activity" to record meditation, exercise, or
+                        other wellness activities.
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-3">
+                    {checkIns.map((activity: any) => (
+                      <div
+                        key={activity._id || activity.id}
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <Activity className="w-4 h-4 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm truncate">
+                                {activity.name}
+                              </p>
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize shrink-0">
+                                {activity.type}
+                              </span>
+                            </div>
+                            {activity.description && (
+                              <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                {activity.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              <Clock className="w-3 h-3 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(
+                                  new Date(activity.timestamp),
+                                  { addSuffix: true }
+                                )}
+                              </span>
+                              {activity.duration > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                  • {activity.duration} min
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                          onClick={() =>
+                            handleDeleteActivity(activity._id || activity.id)
+                          }
+                          title="Delete activity"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
 
           {/* Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

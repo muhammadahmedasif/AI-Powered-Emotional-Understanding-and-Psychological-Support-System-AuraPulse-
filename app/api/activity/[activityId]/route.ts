@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: NextRequest) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { activityId: string } }
+) {
   const API_URL = process.env.BACKEND_API_URL;
   const token = req.headers.get("Authorization");
 
@@ -11,29 +14,19 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
-    const { score, note } = body;
+    const { activityId } = params;
 
-    if (typeof score !== "number" || score < 0 || score > 100) {
-      return NextResponse.json(
-        { error: "Invalid mood score" },
-        { status: 400 }
-      );
-    }
-
-    const response = await fetch(`${API_URL}/api/mood`, {
-      method: "POST",
+    const response = await fetch(`${API_URL}/api/activity/${activityId}`, {
+      method: "DELETE",
       headers: {
-        "Content-Type": "application/json",
         Authorization: token,
       },
-      body: JSON.stringify({ score, note }),
     });
 
     if (!response.ok) {
       const error = await response.json();
       return NextResponse.json(
-        { error: error.message || "Failed to track mood" },
+        { error: error.message || "Failed to delete activity" },
         { status: response.status }
       );
     }
@@ -41,7 +34,7 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Error tracking mood:", error);
+    console.error("Error deleting activity:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

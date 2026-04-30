@@ -17,6 +17,7 @@ import {
   PlusCircle,
   MessageSquare,
   Trash2,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -101,6 +102,7 @@ export default function TherapyPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [stressPrompt, setStressPrompt] = useState<StressPrompt | null>(null);
   const [showActivity, setShowActivity] = useState(false);
   const [isChatPaused, setIsChatPaused] = useState(false);
@@ -449,7 +451,11 @@ export default function TherapyPage() {
   };
 
   const handleSessionSelect = async (selectedSessionId: string) => {
-    if (selectedSessionId === sessionId) return;
+    if (selectedSessionId === sessionId) {
+      setIsSidebarOpen(false);
+      return;
+    }
+    setIsSidebarOpen(false);
     router.push(`/therapy/${selectedSessionId}`);
   };
 
@@ -457,10 +463,21 @@ export default function TherapyPage() {
   const currentTitle = currentSession?.title || "New Chat";
 
   return (
-    <div className="relative max-w-7xl mx-auto px-4">
-      <div className="flex h-[calc(100vh-4rem)] mt-20 gap-6">
+    <div className="relative max-w-7xl mx-auto lg:px-4">
+      <div className="flex h-[calc(100vh-4rem)] lg:mt-20 mt-16 lg:gap-6">
+        {/* Mobile Sidebar Overlay */}
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+        
         {/* Sidebar with chat history */}
-        <div className="w-80 flex flex-col border-r bg-muted/30">
+        <div className={cn(
+          "fixed inset-y-0 left-0 z-50 w-80 bg-background border-r flex flex-col transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:bg-muted/30 pt-16 lg:pt-0",
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}>
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Chat Sessions</h2>
@@ -548,6 +565,14 @@ export default function TherapyPage() {
           {/* Chat header */}
           <div className="p-4 border-b flex items-center justify-between">
             <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden mr-2"
+                onClick={() => setIsSidebarOpen(true)}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
               <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                 <Bot className="w-5 h-5" />
               </div>

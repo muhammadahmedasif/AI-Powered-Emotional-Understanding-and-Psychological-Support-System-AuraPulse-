@@ -65,3 +65,22 @@ export async function getTodayActivities(): Promise<{ success: boolean; data: an
 
   return response.json();
 }
+
+export async function deleteActivity(activityId: string): Promise<{ success: boolean; message: string }> {
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Not authenticated");
+
+  const response = await fetch(`/api/activity/${activityId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to delete activity");
+  }
+
+  return response.json();
+}
