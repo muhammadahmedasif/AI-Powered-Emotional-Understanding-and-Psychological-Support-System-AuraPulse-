@@ -104,93 +104,15 @@ export default function TherapyPage() {
   const [isChatPaused, setIsChatPaused] = useState(false);
   const [showNFTCelebration, setShowNFTCelebration] = useState(false);
   const [isCompletingSession, setIsCompletingSession] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(
-    params.sessionId as string
-  );
+  const sessionId = params.sessionId as string;
   const [sessions, setSessions] = useState<ChatSession[]>([]);
 
-  const handleNewSession = async () => {
-    try {
-      setIsLoading(true);
-      const newSessionId = await createChatSession();
-      console.log("New session created:", newSessionId);
-
-      // Update sessions list immediately
-      const newSession: ChatSession = {
-        sessionId: newSessionId,
-        title: "New Therapy Session",
-        messages: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      // Update all state in one go
-      setSessions((prev) => [newSession, ...prev]);
-      setSessionId(newSessionId);
-      setMessages([]);
-
-      // Update URL without refresh
-      window.history.pushState({}, "", `/therapy/${newSessionId}`);
-
-      // Force a re-render of the chat area
-      setIsLoading(false);
-    } catch (error) {
-      console.error("Failed to create new session:", error);
-      setIsLoading(false);
-    }
-  };
-
-  // Initialize chat session and load history
+  // 1. Initial mounting check
   useEffect(() => {
-    const initChat = async () => {
-      try {
-        setIsLoading(true);
-        if (!sessionId || sessionId === "new") {
-          console.log("Creating new chat session...");
-          const newSessionId = await createChatSession();
-          console.log("New session created:", newSessionId);
-          setSessionId(newSessionId);
-          window.history.pushState({}, "", `/therapy/${newSessionId}`);
-        } else {
-          console.log("Loading existing chat session:", sessionId);
-          try {
-            const history = await getChatHistory(sessionId);
-            console.log("Loaded chat history:", history);
-            if (Array.isArray(history)) {
-              const formattedHistory = history.map((msg) => ({
-                ...msg,
-                timestamp: new Date(msg.timestamp),
-              }));
-              console.log("Formatted history:", formattedHistory);
-              setMessages(formattedHistory);
-            } else {
-              console.error("History is not an array:", history);
-              setMessages([]);
-            }
-          } catch (historyError) {
-            console.error("Error loading chat history:", historyError);
-            setMessages([]);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to initialize chat:", error);
-        setMessages([
-          {
-            role: "assistant",
-            content:
-              "I apologize, but I'm having trouble loading the chat session. Please try refreshing the page.",
-            timestamp: new Date(),
-          },
-        ]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    setMounted(true);
+  }, []);
 
-    initChat();
-  }, [sessionId]);
-
-  // Load all chat sessions
+  // 2. Load all chat sessions (sidebar) - Only once on mount
   useEffect(() => {
     const loadSessions = async () => {
       try {
@@ -201,8 +123,69 @@ export default function TherapyPage() {
       }
     };
 
-    loadSessions();
-  }, [messages]);
+    if (mounted) {
+      loadSessions();
+    }
+  }, [mounted]);
+
+  // 3. Load chat history whenever sessionId changes
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!sessionId || sessionId === "new") {
+        setMessages([]);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        console.log("Loading existing chat session:", sessionId);
+        const history = await getChatHistory(sessionId);
+        
+        if (Array.isArray(history)) {
+          const formattedHistory = history.map((msg) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+          }));
+          setMessages(formattedHistory);
+        } else {
+          setMessages([]);
+        }
+      } catch (error) {
+        console.error("Failed to load chat history:", error);
+        setMessages([
+          {
+            role: "assistant",
+            content: "I apologize, but I'm having trouble loading the chat session.",
+            timestamp: new Date(),
+          },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (mounted) {
+      loadHistory();
+    }
+  }, [sessionId, mounted]);
+
+  const handleNewSession = async () => {
+    try {
+      setIsLoading(true);
+      const newSessionId = await createChatSession();
+      
+      // Update session list to include the new one immediately
+      const allSessions = await getAllChatSessions();
+      setSessions(allSessions);
+      
+      router.push(`/therapy/${newSessionId}`);
+    } catch (error) {
+      console.error("Failed to create new session:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
@@ -404,13 +387,30 @@ export default function TherapyPage() {
   };
 
   const handleSuggestedQuestion = async (text: string) => {
-    if (!sessionId) {
-      const newSessionId = await createChatSession();
-      setSessionId(newSessionId);
-      router.push(`/therapy/${newSessionId}`);
+    let currentSessionId = sessionId;
+    
+    if (!currentSessionId || currentSessionId === "new") {
+      try {
+        setIsLoading(true);
+        currentSessionId = await createChatSession();
+        // Update session list
+        const allSessions = await getAllChatSessions();
+        setSessions(allSessions);
+        // Navigation will happen, but we can also set message state before
+        setMessage(text);
+        router.push(`/therapy/${currentSessionId}`);
+        // We don't need to manually trigger submit here because the user is now in a new session
+        // They can just click send, or we can auto-submit after navigation in a useEffect
+        return;
+      } catch (error) {
+        console.error("Failed to create session for suggested question:", error);
+        setIsLoading(false);
+        return;
+      }
     }
 
     setMessage(text);
+    // Submit the form
     setTimeout(() => {
       const event = new Event("submit") as unknown as React.FormEvent;
       handleSubmit(event);
@@ -431,24 +431,7 @@ export default function TherapyPage() {
 
   const handleSessionSelect = async (selectedSessionId: string) => {
     if (selectedSessionId === sessionId) return;
-
-    try {
-      setIsLoading(true);
-      const history = await getChatHistory(selectedSessionId);
-      if (Array.isArray(history)) {
-        const formattedHistory = history.map((msg) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        }));
-        setMessages(formattedHistory);
-        setSessionId(selectedSessionId);
-        window.history.pushState({}, "", `/therapy/${selectedSessionId}`);
-      }
-    } catch (error) {
-      console.error("Failed to load session:", error);
-    } finally {
-      setIsLoading(false);
-    }
+    router.push(`/therapy/${selectedSessionId}`);
   };
 
   const currentSession = sessions.find((s) => s.sessionId === sessionId);
@@ -612,9 +595,9 @@ export default function TherapyPage() {
             <div className="flex-1 overflow-y-auto scroll-smooth">
               <div className="max-w-3xl mx-auto">
                 <AnimatePresence initial={false}>
-                  {messages.map((msg) => (
+                  {messages.map((msg, index) => (
                     <motion.div
-                      key={msg.timestamp.toISOString()}
+                      key={`${msg.timestamp.toISOString()}-${msg.role}-${index}`}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}

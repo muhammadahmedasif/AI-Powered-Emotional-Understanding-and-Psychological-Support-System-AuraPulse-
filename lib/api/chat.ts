@@ -142,8 +142,13 @@ export async function getAllChatSessions(): Promise<ChatSession[]> {
   return sessions.map((session) => ({
     sessionId: session.sessionId,
     title: session.title || "New Chat",
-    messages: [],
-    createdAt: toDate(session.startTime || session.createdAt),
-    updatedAt: toDate(session.updatedAt || session.startTime),
+    messages: session.lastMessage ? [{
+      role: "assistant", // Approximation for preview
+      content: session.lastMessage.content,
+      timestamp: toDate(session.lastMessage.timestamp)
+    }] : [],
+    createdAt: toDate(session.startTime),
+    updatedAt: toDate(session.lastMessage?.timestamp || session.startTime),
+    messageCount: session.messageCount || 0
   }));
 }

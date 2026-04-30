@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 const BACKEND_API_URL = process.env.BACKEND_API_URL;
 
 export async function POST(req: NextRequest) {
@@ -59,6 +61,7 @@ export async function GET(req: NextRequest) {
         "Content-Type": "application/json",
         Authorization: authHeader,
       },
+      cache: "no-store",
     });
 
     if (!response.ok) {
