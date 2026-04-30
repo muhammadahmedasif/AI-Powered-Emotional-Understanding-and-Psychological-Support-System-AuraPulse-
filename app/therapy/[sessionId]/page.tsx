@@ -499,7 +499,7 @@ export default function TherapyPage() {
                   </p>
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-xs text-muted-foreground">
-                      {session.messages?.length || 0} messages
+                      {session.messageCount || 0} messages
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(session.updatedAt), {

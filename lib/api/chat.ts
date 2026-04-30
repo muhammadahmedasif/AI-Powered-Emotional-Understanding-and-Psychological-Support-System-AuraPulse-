@@ -27,6 +27,7 @@ export interface ChatSession {
   messages: ChatMessage[];
   createdAt: Date;
   updatedAt: Date;
+  messageCount: number;
 }
 
 export interface SendMessageResponse {
