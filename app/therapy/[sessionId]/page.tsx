@@ -98,6 +98,7 @@ export default function TherapyPage() {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [mounted, setMounted] = useState(false);
@@ -242,7 +243,7 @@ export default function TherapyPage() {
     }
 
     setMessage("");
-    setIsTyping(true);
+    setIsThinking(true);
 
     try {
       // Add user message
@@ -288,8 +289,9 @@ export default function TherapyPage() {
             const data = JSON.parse(line);
             
             if (data.t === "chunk") {
-              // Set typing to false as soon as first chunk arrives
-              setIsTyping(false);
+              // Hide thinking, start typing
+              setIsThinking(false);
+              setIsTyping(true);
               
               // Append text chunk to the last message
               setMessages((prev) => {
@@ -324,6 +326,7 @@ export default function TherapyPage() {
         }
       }
       
+      setIsThinking(false);
       setIsTyping(false);
       scrollToBottom();
     } catch (error) {
@@ -337,6 +340,7 @@ export default function TherapyPage() {
           timestamp: new Date(),
         },
       ]);
+      setIsThinking(false);
       setIsTyping(false);
     }
   };
@@ -709,20 +713,26 @@ export default function TherapyPage() {
                   ))}
                 </AnimatePresence>
 
-                {isTyping && (
+                {(isThinking || isTyping) && (
                   <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="px-6 py-8 flex gap-4 bg-muted/30"
+                    className="px-6 py-6 flex gap-4 bg-muted/30 border-t border-muted"
                   >
                     <div className="w-8 h-8 shrink-0">
                       <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center ring-1 ring-primary/20">
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        {isThinking ? (
+                          <Sparkles className="w-4 h-4 animate-pulse" />
+                        ) : (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        )}
                       </div>
                     </div>
-                    <div className="flex-1 space-y-2">
-                      <p className="font-medium text-sm">AI Therapist</p>
-                      <p className="text-sm text-muted-foreground">Typing...</p>
+                    <div className="flex-1 space-y-1">
+                      <p className="font-medium text-xs text-primary">Maya</p>
+                      <p className="text-sm text-muted-foreground animate-pulse">
+                        {isThinking ? "Maya is gathering her thoughts..." : "Maya is typing..."}
+                      </p>
                     </div>
                   </motion.div>
                 )}
