@@ -253,14 +253,7 @@ export default function TherapyPage() {
       };
       setMessages((prev) => [...prev, userMessage]);
 
-      // Check for stress signals
-      const stressCheck = detectStressSignals(currentMessage);
-      if (stressCheck) {
-        setStressPrompt(stressCheck);
-        setIsTyping(false);
-        return;
-      }
-
+      console.log("SENDING TO BACKEND:", currentMessage);
       console.log("Sending message to API...");
       
       // Add empty assistant message immediately so we can stream into it
