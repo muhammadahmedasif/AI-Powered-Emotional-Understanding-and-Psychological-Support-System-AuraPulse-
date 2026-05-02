@@ -308,9 +308,15 @@ export default function TherapyPage() {
                   technique: data.metadata?.technique || "supportive",
                   goal: data.metadata?.currentGoal || "Provide support",
                   progress: data.metadata?.progress,
+                  emotionMeta: data.metadata?.emotionMeta,
                 };
                 return newMessages;
               });
+
+              // Auto-trigger activity modal if backend says so
+              if (data.metadata?.emotionMeta?.autoTrigger && data.metadata?.emotionMeta?.suggestedActivity) {
+                handleActivityTrigger(data.metadata.emotionMeta.suggestedActivity, data.metadata.emotionMeta.emotion);
+              }
             }
           } catch (e) {
             console.error("Error parsing NDJSON chunk:", e);
@@ -347,59 +353,44 @@ export default function TherapyPage() {
     );
   }
 
-  const detectStressSignals = (message: string): StressPrompt | null => {
-    const stressKeywords = [
-      "stress",
-      "anxiety",
-      "worried",
-      "panic",
-      "overwhelmed",
-      "nervous",
-      "tense",
-      "pressure",
-      "can't cope",
-      "exhausted",
-    ];
 
-    const lowercaseMsg = message.toLowerCase();
-    const foundKeyword = stressKeywords.find((keyword) =>
-      lowercaseMsg.includes(keyword)
-    );
 
-    if (foundKeyword) {
-      const activities = [
-        {
-          type: "breathing" as const,
-          title: "Breathing Exercise",
-          description:
-            "Follow calming breathing exercises with visual guidance",
-        },
-        {
-          type: "garden" as const,
-          title: "Zen Garden",
-          description: "Create and maintain your digital peaceful space",
-        },
-        {
-          type: "forest" as const,
-          title: "Mindful Forest",
-          description: "Take a peaceful walk through a virtual forest",
-        },
-        {
-          type: "waves" as const,
-          title: "Ocean Waves",
-          description: "Match your breath with gentle ocean waves",
-        },
-      ];
+  const handleActivityTrigger = (
+    activityType: "breathing" | "ocean" | "forest" | "zen",
+    triggerReason: string = "support"
+  ) => {
+    let type: "breathing" | "garden" | "forest" | "waves" = "breathing";
+    let title = "Calming Activity";
+    let description = "Take a moment to center yourself";
 
-      return {
-        trigger: foundKeyword,
-        activity: activities[Math.floor(Math.random() * activities.length)],
-      };
+    switch (activityType) {
+      case "breathing":
+        type = "breathing";
+        title = "Breathing Patterns";
+        description = "Follow calming breathing exercises with visual guidance";
+        break;
+      case "ocean":
+        type = "waves";
+        title = "Ocean Waves";
+        description = "Match your breath with gentle ocean waves";
+        break;
+      case "forest":
+        type = "forest";
+        title = "Mindful Forest";
+        description = "Take a peaceful walk through a virtual forest";
+        break;
+      case "zen":
+        type = "garden";
+        title = "Zen Garden";
+        description = "Create and maintain your digital peaceful space";
+        break;
     }
 
-    return null;
+    setStressPrompt({
+      trigger: triggerReason,
+      activity: { type, title, description },
+    });
   };
-
   const handleSuggestedQuestion = async (text: string) => {
     let currentSessionId = sessionId;
     
@@ -689,6 +680,29 @@ export default function TherapyPage() {
                               Goal: {msg.metadata.goal}
                             </p>
                           )}
+                          
+                          {/* Emotion Suggestion UI */}
+                          {msg.metadata?.emotionMeta?.suggestedActivity && (
+                            <div className="mt-4 p-4 rounded-xl border border-primary/20 bg-primary/5 shadow-sm">
+                               <p className="font-medium text-sm text-primary mb-3">
+                                  Want to try a calming {
+                                    msg.metadata.emotionMeta.suggestedActivity === 'zen' ? 'Zen Garden' :
+                                    msg.metadata.emotionMeta.suggestedActivity === 'forest' ? 'Mindful Forest' :
+                                    msg.metadata.emotionMeta.suggestedActivity === 'ocean' ? 'Ocean Waves' :
+                                    'Breathing'
+                                  } exercise?
+                               </p>
+                               <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="w-full sm:w-auto bg-background hover:bg-primary/10 transition-colors border-primary/20"
+                                  onClick={() => handleActivityTrigger(msg.metadata?.emotionMeta?.suggestedActivity as any, msg.metadata?.emotionMeta?.emotion)}
+                               >
+                                  <Sparkles className="w-4 h-4 mr-2 text-primary" />
+                                  Start Activity
+                               </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </motion.div>
@@ -780,9 +794,37 @@ export default function TherapyPage() {
               </kbd>{" "}
               for new line
             </div>
+            </div>
           </div>
         </div>
-      </div>
+
+      {/* Interactive Activity Modal Overlay */}
+      {stressPrompt && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-background rounded-xl border shadow-lg flex flex-col">
+            <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+              <div>
+                <h3 className="text-lg font-semibold">{stressPrompt.activity.title}</h3>
+                <p className="text-sm text-muted-foreground">{stressPrompt.activity.description}</p>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="rounded-full shrink-0"
+                onClick={() => setStressPrompt(null)}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <div className="p-4 flex-1">
+              {stressPrompt.activity.type === "breathing" && <BreathingGame />}
+              {stressPrompt.activity.type === "waves" && <OceanWaves />}
+              {stressPrompt.activity.type === "forest" && <ForestGame />}
+              {stressPrompt.activity.type === "garden" && <ZenGarden />}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,13 @@ export interface MessageAnalysis {
   progressIndicators: string[];
 }
 
+export interface EmotionMeta {
+  emotion: "panic" | "stress" | "low" | "neutral" | "positive";
+  intensity: number;
+  suggestedActivity: "breathing" | "ocean" | "forest" | "zen" | null;
+  autoTrigger: boolean;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -18,6 +25,7 @@ export interface ChatMessage {
       emotionalState?: string;
       riskLevel?: number;
     };
+    emotionMeta?: EmotionMeta;
   };
 }
 
@@ -41,6 +49,7 @@ export interface SendMessageResponse {
       emotionalState?: string;
       riskLevel?: number;
     };
+    emotionMeta?: EmotionMeta;
   };
 }
 
