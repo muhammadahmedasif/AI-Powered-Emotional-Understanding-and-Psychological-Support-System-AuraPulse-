@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
       headers: {
         Authorization: token,
       },
+      cache: "no-store",
     });
 
     if (!res.ok) {

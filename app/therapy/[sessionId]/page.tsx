@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Send,
   Bot,
-  User,
+  User as UserIcon,
   Loader2,
   Sparkles,
   X,
@@ -47,6 +47,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 import { Separator } from "@/components/ui/separator";
+import { useSession } from "@/lib/contexts/session-context";
 
 interface SuggestedQuestion {
   id: string;
@@ -94,6 +95,7 @@ const glowAnimation = {
 const COMPLETION_THRESHOLD = 5;
 
 export default function TherapyPage() {
+  const { user } = useSession();
   const params = useParams();
   const router = useRouter();
   const [message, setMessage] = useState("");
@@ -638,79 +640,105 @@ export default function TherapyPage() {
             <div className="flex-1 overflow-y-auto scroll-smooth">
               <div className="max-w-3xl mx-auto">
                 <AnimatePresence initial={false}>
-                  {messages.map((msg, index) => (
-                    <motion.div
-                      key={`${msg.timestamp.toISOString()}-${msg.role}-${index}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className={cn(
-                        "px-6 py-8",
-                        msg.role === "assistant"
-                          ? "bg-muted/30"
-                          : "bg-background"
-                      )}
-                    >
-                      <div className="flex gap-4">
-                        <div className="w-8 h-8 shrink-0 mt-1">
-                          {msg.role === "assistant" ? (
-                            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center ring-1 ring-primary/20">
-                              <Bot className="w-5 h-5" />
-                            </div>
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center">
-                              <User className="w-5 h-5" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 space-y-2 overflow-hidden min-h-[2rem]">
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium text-sm">
-                              {msg.role === "assistant"
-                                ? "AI Therapist"
-                                : "You"}
-                            </p>
-                            {msg.metadata?.technique && (
-                              <Badge variant="secondary" className="text-xs">
-                                {msg.metadata.technique}
-                              </Badge>
+                  {messages.map((msg, index) => {
+                    const isAssistant = msg.role === "assistant";
+                    const defaultAiAvatar = "https://api.dicebear.com/7.x/bottts/svg?seed=Maya&backgroundColor=b6e3f4,c0aede,d1d4f9";
+                    const avatarSrc = isAssistant 
+                      ? (user?.aiAvatar || defaultAiAvatar)
+                      : user?.profileImage;
+                    
+                    const displayName = isAssistant ? (user?.aiName || "Maya") : (user?.name || "User");
+
+                    return (
+                      <motion.div
+                        key={`${msg.timestamp.toISOString()}-${msg.role}-${index}`}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className={cn(
+                          "flex w-full mb-6",
+                          isAssistant ? "justify-start" : "justify-end"
+                        )}
+                      >
+                        <div className={cn(
+                          "flex max-w-[85%] sm:max-w-[75%] gap-3",
+                          isAssistant ? "flex-row" : "flex-row-reverse"
+                        )}>
+                          {/* Avatar */}
+                          <div className="w-10 h-10 shrink-0 mt-1">
+                            {isAssistant ? (
+                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center ring-2 ring-primary/20 shadow-md overflow-hidden">
+                                <img src={avatarSrc!} alt="AI" className="w-full h-full object-cover" />
+                              </div>
+                            ) : (
+                              <div className="w-10 h-10 rounded-full overflow-hidden bg-secondary text-secondary-foreground flex items-center justify-center ring-2 ring-secondary/20 shadow-md">
+                                {avatarSrc ? (
+                                  <img src={avatarSrc} alt="User" className="w-full h-full object-cover" />
+                                ) : (
+                                  <UserIcon className="w-5 h-5" />
+                                )}
+                              </div>
                             )}
                           </div>
-                          <div className="prose prose-sm dark:prose-invert leading-relaxed">
-                            <ReactMarkdown>{msg.content}</ReactMarkdown>
-                          </div>
-                          {msg.metadata?.goal && (
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Goal: {msg.metadata.goal}
-                            </p>
-                          )}
-                          
-                          {/* Emotion Suggestion UI */}
-                          {msg.metadata?.emotionMeta?.suggestedActivity && (
-                            <div className="mt-4 p-4 rounded-xl border border-primary/20 bg-primary/5 shadow-sm">
-                               <p className="font-medium text-sm text-primary mb-3">
-                                  Want to try a calming {
-                                    msg.metadata.emotionMeta.suggestedActivity === 'zen' ? 'Zen Garden' :
-                                    msg.metadata.emotionMeta.suggestedActivity === 'forest' ? 'Mindful Forest' :
-                                    msg.metadata.emotionMeta.suggestedActivity === 'ocean' ? 'Ocean Waves' :
-                                    'Breathing'
-                                  } exercise?
-                               </p>
-                               <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  className="w-full sm:w-auto bg-background hover:bg-primary/10 transition-colors border-primary/20"
-                                  onClick={() => handleActivityTrigger(msg.metadata?.emotionMeta?.suggestedActivity as any, msg.metadata?.emotionMeta?.emotion)}
-                               >
-                                  <Sparkles className="w-4 h-4 mr-2 text-primary" />
-                                  Start Activity
-                               </Button>
+
+                          {/* Message Bubble */}
+                          <div className="space-y-1 flex flex-col">
+                            <div className={cn(
+                              "p-4 rounded-2xl shadow-sm",
+                              isAssistant 
+                                ? "bg-muted/50 text-foreground rounded-tl-none border border-muted" 
+                                : "bg-primary text-primary-foreground rounded-tr-none"
+                            )}>
+                              <div className={cn(
+                                "prose prose-sm leading-relaxed",
+                                isAssistant ? "dark:prose-invert" : "prose-invert"
+                              )}>
+                                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                              </div>
+
+                              {/* Emotion Suggestion UI */}
+                              {isAssistant && msg.metadata?.emotionMeta?.suggestedActivity && (
+                                <div className="mt-4 p-3 rounded-xl border border-primary/20 bg-primary/5">
+                                   <p className="font-medium text-xs text-primary mb-2 flex items-center gap-2">
+                                      <Sparkles className="w-3 h-3" />
+                                      Try a calming exercise?
+                                   </p>
+                                   <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="w-full bg-background/50 hover:bg-primary/10 h-8 text-xs"
+                                      onClick={() => handleActivityTrigger(msg.metadata?.emotionMeta?.suggestedActivity as any, msg.metadata?.emotionMeta?.emotion)}
+                                   >
+                                      Start {
+                                        msg.metadata.emotionMeta.suggestedActivity === 'zen' ? 'Zen Garden' :
+                                        msg.metadata.emotionMeta.suggestedActivity === 'forest' ? 'Forest Walk' :
+                                        msg.metadata.emotionMeta.suggestedActivity === 'ocean' ? 'Ocean Waves' :
+                                        'Breathing'
+                                      }
+                                   </Button>
+                                </div>
+                              )}
                             </div>
-                          )}
+
+                            {/* Metadata */}
+                            <div className={cn(
+                              "flex items-center gap-2 px-1",
+                              isAssistant ? "justify-start" : "justify-end"
+                            )}>
+                              {isAssistant && msg.metadata?.technique && (
+                                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                  {msg.metadata.technique}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-muted-foreground opacity-70">
+                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                 </AnimatePresence>
 
                 {(isThinking || isTyping) && (
@@ -719,19 +747,18 @@ export default function TherapyPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="px-6 py-6 flex gap-4 bg-muted/30 border-t border-muted"
                   >
-                    <div className="w-8 h-8 shrink-0">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center ring-1 ring-primary/20">
-                        {isThinking ? (
-                          <Sparkles className="w-4 h-4 animate-pulse" />
-                        ) : (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        )}
+                    <div className="w-10 h-10 shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center ring-2 ring-primary/20 shadow-md overflow-hidden">
+                        <img 
+                          src={user?.aiAvatar || "https://api.dicebear.com/7.x/bottts/svg?seed=Maya&backgroundColor=b6e3f4,c0aede,d1d4f9"} 
+                          alt="AI" 
+                          className="w-full h-full object-cover" 
+                        />
                       </div>
                     </div>
                     <div className="flex-1 space-y-1">
-                      <p className="font-medium text-xs text-primary">Maya</p>
-                      <p className="text-sm text-muted-foreground animate-pulse">
-                        {isThinking ? "Maya is gathering her thoughts..." : "Maya is typing..."}
+                      <p className="text-xs font-semibold text-primary/80 ml-1">
+                        {user?.aiName || "Maya"} is {isThinking ? "gathering thoughts" : "typing"}...
                       </p>
                     </div>
                   </motion.div>

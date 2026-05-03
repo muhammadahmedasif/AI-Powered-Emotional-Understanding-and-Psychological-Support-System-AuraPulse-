@@ -10,6 +10,7 @@ import {
   AudioWaveform,
   LogOut,
   LogIn,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
@@ -58,6 +59,20 @@ export function Header() {
                   <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left" />
                 </Link>
               ))}
+              {isAuthenticated && (
+                <Link
+                  href="/profile"
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group flex items-center gap-2"
+                >
+                  {user?.profileImage ? (
+                    <img src={user.profileImage} alt="" className="w-5 h-5 rounded-full object-cover border border-primary/20" />
+                  ) : (
+                    <User className="w-4 h-4" />
+                  )}
+                  Profile
+                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left" />
+                </Link>
+              )}
             </nav>
 
             <div className="flex items-center gap-3">
@@ -117,6 +132,15 @@ export function Header() {
                   {item.label}
                 </Link>
               ))}
+              {isAuthenticated && (
+                <Link
+                  href="/profile"
+                  className="px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-primary/5 rounded-md transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Profile
+                </Link>
+              )}
               {isAuthenticated && (
                 <Button
                   asChild

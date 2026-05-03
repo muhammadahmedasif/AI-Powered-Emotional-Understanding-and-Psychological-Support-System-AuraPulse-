@@ -7,6 +7,10 @@ interface User {
   _id: string;
   name: string;
   email: string;
+  profileImage?: string;
+  aiName?: string;
+  aiBehavior?: string;
+  aiAvatar?: string;
 }
 
 interface SessionContextType {
@@ -43,6 +47,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        cache: "no-store",
       });
 
       console.log("SessionContext: Response status:", response.status);
